@@ -1,0 +1,204 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model Batch {
+    id       String      @id @default(cuid())
+    name     String
+    bankName String?
+    status   BatchStatus @default(CREATED)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    bankTransactions BankTransaction[]
+    matches          Match[]
+    exceptions       Exception[]
+}
+
+model BankTransaction {
+    id      String @id @default(cuid())
+    batchId String
+    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+    transactionDate DateTime
+    referenceId     String?
+    description     String?
+    amount          Decimal         @db.Decimal(12, 2)
+    transactionType TransactionType
+    rawData         Json
+    createdAt       DateTime        @default(now())
+
+    match      Match?
+    exceptions Exception[]
+
+    @@index([batchId])
+    @@index([referenceId])
+    @@index([amount])
+}
+
+model Settlement {
+    id                   String           @id @default(cuid())
+    razorpaySettlementId String           @unique
+    transactionId        String?
+    settlementDate       DateTime
+    amount               Decimal          @db.Decimal(12, 2)
+    fee                  Decimal?         @db.Decimal(12, 2)
+    tax                  Decimal?         @db.Decimal(12, 2)
+    status               SettlementStatus
+    rawData              Json
+    createdAt            DateTime         @default(now())
+
+    match      Match?
+    exceptions Exception[]
+
+    @@index([transactionId])
+    @@index([amount])
+}
+
+model Match {
+    id      String @id @default(cuid())
+    batchId String
+    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+    bankTransactionId String          @unique
+    bankTransaction   BankTransaction @relation(fields: [bankTransactionId], references: [id], onDelete: Cascade)
+
+    settlementId      String          @unique
+    settlement        Settlement      @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+    confidence      Float
+    confidenceLevel ConfidenceLevel
+    ruleUsed        String
+    explanation     String?
+    createdAt       DateTime        @default(now())
+
+    @@index([batchId])
+}
+
+model Exception {
+    id      String @id @default(cuid())
+    batchId String
+    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+    bankTransactionId String?
+    bankTransaction   BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: Cascade)
+
+    settlementId      String?
+    settlement        Settlement?      @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+    type        ExceptionType
+    explanation String
+    createdAt   DateTime      @default(now())
+
+    @@index([batchId])
+    @@index([bankTransactionId])
+    @@index([settlementId])
+}
+
+enum BatchStatus {
+    CREATED
+    PROCESSING
+    COMPLETED
+    FAILED
+}
+
+enum TransactionType {
+    CREDIT
+    DEBIT
+}
+
+enum SettlementStatus {
+    PROCESSED
+    PENDING
+    FAILED
+}
+
+enum ConfidenceLevel {
+    VERIFIED
+    REVIEW_REQUIRED
+    UNRESOLVED
+}
+
+enum ExceptionType {
+    MISSING_SETTLEMENT
+    AMOUNT_MISMATCH
+    REFUND
+    FEE_ADJUSTMENT
+    DUPLICATE_RECORD
+    AMBIGUOUS_MATCH
+}
+
+model RazorpaySync {
+    id             String     @id @default(cuid())
+    syncDate       DateTime   @default(now())
+    status         SyncStatus @default(SUCCESS)
+    recordsCount   Int
+    volumeImported Decimal    @db.Decimal(12, 2)
+    errorMessage   String?
+}
+
+enum SyncStatus {
+    SUCCESS
+    FAILED
+}
+
+model Payment {
+    id                String   @id @default(cuid())
+    razorpayPaymentId String   @unique
+    amount            Decimal  @db.Decimal(12, 2)
+    currency          String
+    status            String
+    method            String
+    email             String?
+    contact           String?
+    transactionId     String?
+    settlementId      String?
+    rawData           Json
+    createdAt         DateTime @default(now())
+}
+
+model Refund {
+    id               String   @id @default(cuid())
+    razorpayRefundId String   @unique
+    paymentId        String
+    amount           Decimal  @db.Decimal(12, 2)
+    currency         String
+    status           String
+    rawData          Json
+    createdAt        DateTime @default(now())
+}
+
+model Payout {
+    id               String   @id @default(cuid())
+    razorpayPayoutId String   @unique
+    amount           Decimal  @db.Decimal(12, 2)
+    currency         String
+    status           String
+    rawData          Json
+    createdAt        DateTime @default(now())
+}
+
+model Notification {
+    id        String   @id @default(cuid())
+    type      String   // BATCH_UPLOADED, RECONCILIATION_COMPLETED, EXCEPTION_DETECTED, REPORT_GENERATED, RAZORPAY_SYNC_COMPLETED
+    title     String
+    message   String
+    read      Boolean  @default(false)
+    createdAt DateTime @default(now())
+}
+
+model AuditLog {
+    id         String   @id @default(cuid())
+    action     String   // LOGIN, UPLOAD, RECONCILIATION, EXCEPTION_REVIEW, EXPORT, SYNC
+    userEmail  String
+    userName   String?
+    entityType String?  // BATCH, TRANSACTION, EXCEPTION, SYNC_LOG, USER, LEDGER
+    entityId   String?
+    entityName String?
+    createdAt  DateTime @default(now())
+}
