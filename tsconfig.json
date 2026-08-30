@@ -30,5 +30,13 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "prisma/seed.ts",
+    "prisma/wipe.ts",
+    "test-dashboard-execution.ts",
+    "test-dashboard-queries.ts",
+    "test-db.ts",
+    "**/.gemini/**/*"
+  ]
 }

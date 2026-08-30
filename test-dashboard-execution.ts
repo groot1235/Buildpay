@@ -66,7 +66,7 @@ async function main() {
     console.log("Continuing execution for populated dashboard...");
     const matchedTransactions = dashboardStats.totalMatched;
     const exactMatches = matchedTransactions;
-    const feeAdjustments = batchesFromDb.reduce((sum, b) => sum + b._count.exceptions, 0);
+    const feeAdjustments = batchesFromDb.reduce((sum: any, b: any) => sum + b._count.exceptions, 0);
     const amountMismatches = 0;
     const missingSettlements = dashboardStats.totalExceptions;
     const confirmedAmount = Number(confirmedAmountAggregate._sum.amount || 0);

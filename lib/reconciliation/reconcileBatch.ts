@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { ConfidenceLevel, ExceptionType, BatchStatus, Prisma } from "@prisma/client";
+import { ConfidenceLevel, ExceptionType, BatchStatus, Prisma, Settlement } from "@prisma/client";
 
 export interface ReconciliationReport {
   totalTransactions: number;
@@ -55,7 +55,7 @@ export async function reconcileBatch(batchId: string): Promise<ReconciliationRep
     });
     const alreadyMatchedSet = new Set(otherMatches.map((m) => m.settlementId));
 
-    const settlements = rawSettlements.filter((s) => !alreadyMatchedSet.has(s.id));
+    const settlements = rawSettlements.filter((s: Settlement) => !alreadyMatchedSet.has(s.id));
 
     let exactMatches = 0;
     let feeAdjustments = 0;
@@ -98,7 +98,7 @@ export async function reconcileBatch(batchId: string): Promise<ReconciliationRep
       // STEP A: Try to match by reference ID
       if (refId && refId.trim() !== "") {
         const settlement = settlements.find(
-          (s) => s.transactionId === refId && !matchedSettlementIds.has(s.id)
+          (s: Settlement) => s.transactionId === refId && !matchedSettlementIds.has(s.id)
         );
 
         if (settlement) {
@@ -147,7 +147,7 @@ export async function reconcileBatch(batchId: string): Promise<ReconciliationRep
       // STEP B: If not matched, try to match by amount + date within tolerance
       if (!matched) {
         // Find all unmatched settlements with identical amount and date within tolerance
-        const candidates = settlements.filter((s) => {
+        const candidates = settlements.filter((s: Settlement) => {
           if (matchedSettlementIds.has(s.id)) return false;
           if (!s.amount.equals(bankAmt)) return false;
 
@@ -158,7 +158,7 @@ export async function reconcileBatch(batchId: string): Promise<ReconciliationRep
 
         if (candidates.length > 0) {
           // Sort candidates to find the one closest in date
-          candidates.sort((a, b) => {
+          candidates.sort((a: Settlement, b: Settlement) => {
             const diffA = Math.abs(bankDate - new Date(a.settlementDate).getTime());
             const diffB = Math.abs(bankDate - new Date(b.settlementDate).getTime());
             return diffA - diffB;
@@ -200,7 +200,7 @@ export async function reconcileBatch(batchId: string): Promise<ReconciliationRep
     }
 
     // 4. Save Match/Exception records and update status to COMPLETED inside a database transaction
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       // Clear old matches/exceptions
       await tx.match.deleteMany({ where: { batchId } });
       await tx.exception.deleteMany({ where: { batchId } });
